@@ -5,9 +5,9 @@ namespace Halite3.hlt
 {
     public class GameMap
     {
-        public readonly int width;
-        public readonly int height;
         public readonly MapCell[][] cells;
+        public readonly int height;
+        public readonly int width;
 
         public GameMap(int width, int height)
         {
@@ -15,7 +15,7 @@ namespace Halite3.hlt
             this.height = height;
 
             cells = new MapCell[height][];
-            for (int y = 0; y < height; ++y)
+            for (var y = 0; y < height; ++y)
             {
                 cells[y] = new MapCell[width];
             }
@@ -23,7 +23,7 @@ namespace Halite3.hlt
 
         public MapCell At(Position position)
         {
-            Position normalized = normalize(position);
+            var normalized = normalize(position);
             return cells[normalized.y][normalized.x];
         }
 
@@ -32,38 +32,48 @@ namespace Halite3.hlt
             return At(entity.position);
         }
 
+        public int CalculateDistance(Entity source, Entity target)
+        {
+            return CalculateDistance(source.position, target.position);
+        }
+
         public int CalculateDistance(Position source, Position target)
         {
-            Position normalizedSource = normalize(source);
-            Position normalizedTarget = normalize(target);
+            var normalizedSource = normalize(source);
+            var normalizedTarget = normalize(target);
 
-            int dx = Math.Abs(normalizedSource.x - normalizedTarget.x);
-            int dy = Math.Abs(normalizedSource.y - normalizedTarget.y);
+            var dx = Math.Abs(normalizedSource.x - normalizedTarget.x);
+            var dy = Math.Abs(normalizedSource.y - normalizedTarget.y);
 
-            int toroidal_dx = Math.Min(dx, width - dx);
-            int toroidal_dy = Math.Min(dy, height - dy);
+            var toroidal_dx = Math.Min(dx, width - dx);
+            var toroidal_dy = Math.Min(dy, height - dy);
 
             return toroidal_dx + toroidal_dy;
         }
 
         public Position normalize(Position position)
         {
-            int x = ((position.x % width) + width) % width;
-            int y = ((position.y % height) + height) % height;
+            var x = (position.x % width + width) % width;
+            var y = (position.y % height + height) % height;
             return new Position(x, y);
+        }
+
+        public List<Direction> GetUnsafeMoves(Entity source, Entity destination)
+        {
+            return GetUnsafeMoves(source.position, destination.position);
         }
 
         public List<Direction> GetUnsafeMoves(Position source, Position destination)
         {
-            List<Direction> possibleMoves = new List<Direction>();
+            var possibleMoves = new List<Direction>();
 
-            Position normalizedSource = normalize(source);
-            Position normalizedDestination = normalize(destination);
+            var normalizedSource = normalize(source);
+            var normalizedDestination = normalize(destination);
 
-            int dx = Math.Abs(normalizedSource.x - normalizedDestination.x);
-            int dy = Math.Abs(normalizedSource.y - normalizedDestination.y);
-            int wrapped_dx = width - dx;
-            int wrapped_dy = height - dy;
+            var dx = Math.Abs(normalizedSource.x - normalizedDestination.x);
+            var dy = Math.Abs(normalizedSource.y - normalizedDestination.y);
+            var wrapped_dx = width - dx;
+            var wrapped_dy = height - dy;
 
             if (normalizedSource.x < normalizedDestination.x)
             {
@@ -86,39 +96,72 @@ namespace Halite3.hlt
             return possibleMoves;
         }
 
+        public Direction NaiveNavigate(Ship ship, Entity destination)
+        {
+            return NaiveNavigate(ship, destination.position);
+        }
         public Direction NaiveNavigate(Ship ship, Position destination)
         {
             // getUnsafeMoves normalizes for us
-            foreach (Direction direction in GetUnsafeMoves(ship.position, destination))
+            foreach (var direction in GetUnsafeMoves(ship.position, destination))
             {
-                Position targetPos = ship.position.DirectionalOffset(direction);
+                var targetPos = ship.position.DirectionalOffset(direction);
                 if (!At(targetPos).IsOccupied())
                 {
                     At(targetPos).MarkUnsafe(ship);
                     return direction;
                 }
             }
-
             return Direction.STILL;
         }
 
+        public IEnumerable<(Position pos, Direction d)> GetNeighbors(Entity source)
+        {
+            return GetNeighbors(source.position);
+        }
+
+        public IEnumerable<(Position pos, Direction d)> GetNeighbors(Position position)
+        {
+            foreach (Direction d in Enum.GetValues(typeof(Direction)))
+            {
+                if (d == Direction.STILL)
+                {
+                    continue;
+                }
+
+                var neighbor = position.DirectionalOffset(d);
+                if (IsWithinBounds(neighbor) && !At(neighbor).IsOccupied())
+                {
+                    yield return (neighbor, d);
+                }
+            }
+        }
+
+        private bool IsWithinBounds(Position p)
+        {
+            return p.x < width && p.x >= 0 &&
+                   p.y < height && p.y >= 0;
+
+        }
+        
+
         public void _update()
         {
-            for (int y = 0; y < height; ++y)
+            for (var y = 0; y < height; ++y)
             {
-                for (int x = 0; x < width; ++x)
+                for (var x = 0; x < width; ++x)
                 {
                     cells[y][x].ship = null;
                 }
             }
 
-            int updateCount = Input.ReadInput().GetInt();
+            var updateCount = Input.ReadInput().GetInt();
 
-            for (int i = 0; i < updateCount; ++i)
+            for (var i = 0; i < updateCount; ++i)
             {
-                Input input = Input.ReadInput();
-                int x = input.GetInt();
-                int y = input.GetInt();
+                var input = Input.ReadInput();
+                var x = input.GetInt();
+                var y = input.GetInt();
 
                 cells[y][x].halite = input.GetInt();
             }
@@ -126,19 +169,19 @@ namespace Halite3.hlt
 
         public static GameMap _generate()
         {
-            Input mapInput = Input.ReadInput();
-            int width = mapInput.GetInt();
-            int height = mapInput.GetInt();
+            var mapInput = Input.ReadInput();
+            var width = mapInput.GetInt();
+            var height = mapInput.GetInt();
 
-            GameMap map = new GameMap(width, height);
+            var map = new GameMap(width, height);
 
-            for (int y = 0; y < height; ++y)
+            for (var y = 0; y < height; ++y)
             {
-                Input rowInput = Input.ReadInput();
+                var rowInput = Input.ReadInput();
 
-                for (int x = 0; x < width; ++x)
+                for (var x = 0; x < width; ++x)
                 {
-                    int halite = rowInput.GetInt();
+                    var halite = rowInput.GetInt();
                     map.cells[y][x] = new MapCell(new Position(x, y), halite);
                 }
             }
